@@ -1004,7 +1004,7 @@ def main() -> None:
     report_path = build_report(result)
     zip_path = create_source_zip()
     write_execution_summary(result, report_path, zip_path)
-    print(f"Relazione creata: {report_path}")
+    
     print(f"Zip sorgenti creato: {zip_path}")
     print(f"k finale: {result.final_k}")
     print(f"Silhouette K-Means: {result.silhouette_final:.3f}")
