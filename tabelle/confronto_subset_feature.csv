@@ -1,0 +1,3 @@
+scenario,numero_feature,varianza_prime_2_PC,k_migliore_silhouette,silhouette_migliore
+tutte_le_feature,9,0.6313336543771411,3,0.44249722382762424
+subset_socio_sanitario,5,0.9160032208324158,3,0.5742802521189826
