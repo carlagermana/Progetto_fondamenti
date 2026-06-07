@@ -21,6 +21,14 @@
 
 ## Riproduzione
 
+Installare le librerie richieste:
+
+```bash
+pip install -r codice_sorgente/requirements.txt
+```
+
+Eseguire lo script:
+
 ```bash
 python3 codice_sorgente/main.py
 ```

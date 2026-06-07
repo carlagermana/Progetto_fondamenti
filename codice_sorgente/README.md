@@ -12,6 +12,10 @@ Questo codice realizza una pipeline completa di data analysis sul dataset `Count
 Dalla root del progetto:
 
 ```bash
+pip install -r codice_sorgente/requirements.txt
+```
+
+```bash
 python3 codice_sorgente/main.py
 ```
 
