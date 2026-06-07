@@ -9,27 +9,26 @@ Lo script esegue l'intera pipeline richiesta:
 - scelta del numero di cluster con Elbow e Silhouette Score;
 - clustering K-Means sul piano delle prime due componenti principali;
 - clustering basato su grafo K-Neighbors tramite SpectralClustering;
-- esportazione di grafici, tabelle, assegnazioni e relazione PDF.
+- esportazione di grafici, tabelle e assegnazioni.
 
 Esecuzione consigliata dalla root del progetto:
-    python3 output_progetto/codice_sorgente/main.py
+    python3 codice_sorgente/main.py
 """
 
 from __future__ import annotations
 
 import os
-import textwrap
 import warnings
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = ROOT_DIR / "output_progetto"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = ROOT_DIR
 SOURCE_DIR = OUTPUT_DIR / "codice_sorgente"
 PLOTS_DIR = OUTPUT_DIR / "grafici"
 TABLES_DIR = OUTPUT_DIR / "tabelle"
-REPORT_DIR = OUTPUT_DIR / "relazione"
+REPORT_PDF_PATH = OUTPUT_DIR / "relazione" / "relazione_progetto_country_clustering.pdf"
 DATA_DIR = OUTPUT_DIR / "dati"
 ROOT_DATASET_PATH = ROOT_DIR / "Country-data.csv"
 OUTPUT_DATASET_PATH = DATA_DIR / "Country-data.csv"
@@ -50,20 +49,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import ListedColormap
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm
-from reportlab.platypus import (
-    Image,
-    PageBreak,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-    Table,
-    TableStyle,
-)
 from sklearn.cluster import KMeans, SpectralClustering
 from sklearn.decomposition import PCA
 from sklearn.metrics import adjusted_rand_score, silhouette_score
@@ -83,18 +68,6 @@ FULL_FEATURES = [
     "gdpp",
 ]
 SELECTED_FEATURES = ["child_mort", "income", "life_expec", "total_fer", "gdpp"]
-FEATURE_DESCRIPTIONS = {
-    "country": "nome dello stato",
-    "child_mort": "mortalità sotto i 5 anni per 1000 nati vivi",
-    "exports": "esportazioni di beni e servizi in percentuale del PIL",
-    "health": "spesa sanitaria totale in percentuale del PIL",
-    "imports": "importazioni di beni e servizi in percentuale del PIL",
-    "income": "reddito netto per persona",
-    "inflation": "crescita annua del PIL totale",
-    "life_expec": "aspettativa di vita media alla nascita",
-    "total_fer": "numero medio di figli per donna",
-    "gdpp": "PIL pro capite",
-}
 CLUSTER_NAMES = {
     0: "profilo fragile",
     1: "profilo intermedio",
@@ -116,17 +89,12 @@ class AnalysisResult:
     silhouette_final: float
     silhouette_knn: float
     ari_kmeans_knn: float
-    cluster_profile: pd.DataFrame
-    pca_variance: pd.DataFrame
-    k_selection: pd.DataFrame
-    subset_comparison: pd.DataFrame
-    images: dict[str, Path]
 
 
 def ensure_directories() -> None:
     """Crea le cartelle di output senza toccare le directory fornite dal docente."""
 
-    for directory in [SOURCE_DIR, PLOTS_DIR, TABLES_DIR, REPORT_DIR, DATA_DIR]:
+    for directory in [SOURCE_DIR, PLOTS_DIR, TABLES_DIR, DATA_DIR]:
         directory.mkdir(parents=True, exist_ok=True)
 
 
@@ -484,7 +452,7 @@ def run_analysis() -> AnalysisResult:
     pca_full.fit(x_full_scaled)
     images["scree_full"] = plot_scree(pca_full, "tutte_feature")
 
-    subset_comparison = compare_feature_subsets(data)
+    compare_feature_subsets(data)
 
     # Pipeline finale: subset interpretabile + StandardScaler + PCA a due componenti.
     x_selected_scaled, _ = standardize(data, SELECTED_FEATURES)
@@ -593,362 +561,7 @@ def run_analysis() -> AnalysisResult:
         silhouette_final=silhouette_final,
         silhouette_knn=silhouette_knn,
         ari_kmeans_knn=ari_kmeans_knn,
-        cluster_profile=cluster_profile,
-        pca_variance=pca_variance,
-        k_selection=k_selection,
-        subset_comparison=subset_comparison,
-        images=images,
     )
-
-
-def paragraph(text: str, style: ParagraphStyle) -> Paragraph:
-    """Rende più leggibili i paragrafi lunghi nel PDF."""
-
-    cleaned = " ".join(textwrap.dedent(text).strip().split())
-    return Paragraph(cleaned, style)
-
-
-def image_block(path: Path, width_cm: float = 15.5, height_cm: float | None = None) -> Image:
-    """Inserisce un'immagine mantenendo dimensioni omogenee nella relazione."""
-
-    img = Image(str(path), width=width_cm * cm, height=height_cm * cm if height_cm else None)
-    if height_cm is None:
-        img._restrictSize(width_cm * cm, 10.5 * cm)
-    return img
-
-
-def dataframe_table(df: pd.DataFrame, max_rows: int = 8) -> Table:
-    """Converte un DataFrame in tabella ReportLab compatta."""
-
-    shown = df.head(max_rows).copy()
-    for column in shown.columns:
-        if pd.api.types.is_float_dtype(shown[column]):
-            shown[column] = shown[column].map(lambda value: f"{value:.3f}")
-    values = [shown.columns.tolist()] + shown.astype(str).values.tolist()
-    table = Table(values, repeatRows=1)
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2f3e46")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#b0b0b0")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f6f7f8")]),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ]
-        )
-    )
-    return table
-
-
-def footer(canvas, doc) -> None:
-    """Aggiunge numero pagina e titolo breve alla relazione."""
-
-    canvas.saveState()
-    canvas.setFont("Helvetica", 8)
-    canvas.drawString(1.6 * cm, 1.0 * cm, "Progetto Fondamenti di Scienza dei Dati")
-    canvas.drawRightString(19.4 * cm, 1.0 * cm, f"Pagina {doc.page}")
-    canvas.restoreState()
-
-
-def build_report(result: AnalysisResult) -> Path:
-    """Genera la relazione PDF con struttura simile all'esempio fornito."""
-
-    report_path = REPORT_DIR / "relazione_progetto_country_clustering.pdf"
-    styles = getSampleStyleSheet()
-    styles.add(
-        ParagraphStyle(
-            name="ProjectTitle",
-            parent=styles["Title"],
-            alignment=TA_CENTER,
-            fontSize=20,
-            leading=24,
-            spaceAfter=16,
-        )
-    )
-    styles.add(
-        ParagraphStyle(
-            name="BodyJustified",
-            parent=styles["BodyText"],
-            alignment=TA_JUSTIFY,
-            fontSize=10.5,
-            leading=14,
-            spaceAfter=8,
-        )
-    )
-    styles.add(
-        ParagraphStyle(
-            name="SmallNote",
-            parent=styles["BodyText"],
-            fontSize=8.5,
-            leading=11,
-            textColor=colors.HexColor("#444444"),
-            spaceAfter=6,
-        )
-    )
-
-    story = []
-    body = styles["BodyJustified"]
-    heading = styles["Heading1"]
-    subheading = styles["Heading2"]
-
-    story.append(Paragraph("Relazione sul progetto: Profilazione degli stati con PCA e clustering", styles["ProjectTitle"]))
-    story.append(Paragraph("Dataset: Country-data.csv", styles["Heading3"]))
-    story.append(
-        paragraph(
-            """
-            Il progetto analizza 167 stati descritti da indicatori socio-economici, sanitari e
-            demografici. L'obiettivo è individuare gruppi di stati simili tramite tecniche di
-            apprendimento non supervisionato: standardizzazione, analisi delle componenti
-            principali, K-Means e clustering basato su K-Neighbors.
-            """,
-            body,
-        )
-    )
-    story.append(Spacer(1, 0.4 * cm))
-    story.append(
-        dataframe_table(
-            pd.DataFrame(
-                {
-                    "voce": ["osservazioni", "feature numeriche", "valori mancanti", "k finale"],
-                    "valore": [result.data.shape[0], len(FULL_FEATURES), int(result.data.isna().sum().sum()), result.final_k],
-                }
-            )
-        )
-    )
-    story.append(PageBreak())
-
-    story.append(Paragraph("Introduzione e obiettivo", heading))
-    story.append(
-        paragraph(
-            """
-            Il clustering ricerca gruppi di oggetti tali che gli elementi dello stesso gruppo siano
-            più simili tra loro e più differenti dagli elementi degli altri gruppi. Nel linguaggio
-            usato a lezione, la procedura è non supervisionata: non sono disponibili etichette di
-            classe, quindi la validazione è interna e si basa su coesione e separazione dei cluster.
-            """,
-            body,
-        )
-    )
-    story.append(
-        paragraph(
-            """
-            La pipeline adottata segue le fasi richieste dalla consegna: caricamento dei dati,
-            controllo delle feature, StandardScaler, analisi delle correlazioni, PCA, scelta del
-            numero di gruppi con Elbow e Silhouette Score, K-Means e confronto con una tecnica
-            basata sul grafo dei vicini più prossimi.
-            """,
-            body,
-        )
-    )
-    story.append(Paragraph("Feature del dataset", subheading))
-    feature_rows = pd.DataFrame(
-        [{"feature": key, "descrizione": value} for key, value in FEATURE_DESCRIPTIONS.items()]
-    )
-    story.append(dataframe_table(feature_rows, max_rows=10))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Preprocessing dei dati", heading))
-    story.append(
-        paragraph(
-            """
-            Le variabili hanno scale molto diverse: ad esempio income e gdpp sono grandezze
-            economiche con valori nell'ordine delle migliaia, mentre health, exports e imports
-            sono percentuali. Per evitare che le variabili con scala più ampia dominino le distanze
-            euclidee, è stato applicato StandardScaler. Ogni feature viene trasformata sottraendo
-            la media e dividendo per la deviazione standard, ottenendo media circa zero e
-            deviazione standard unitaria.
-            """,
-            body,
-        )
-    )
-    story.append(Paragraph("Statistiche descrittive principali", subheading))
-    stats = result.data[FULL_FEATURES].describe().T.reset_index().rename(columns={"index": "feature"})
-    story.append(dataframe_table(stats[["feature", "mean", "std", "min", "50%", "max"]], max_rows=9))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Analisi esplorativa", heading))
-    story.append(
-        paragraph(
-            """
-            La prima analisi grafica riguarda le distribuzioni delle variabili. Alcune feature
-            economiche risultano molto asimmetriche: pochi paesi presentano reddito e PIL pro
-            capite molto alti, mentre molti stati si concentrano su valori bassi o intermedi.
-            """,
-            body,
-        )
-    )
-    story.append(image_block(result.images["distribuzioni"]))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Correlazioni nello spazio delle feature", heading))
-    story.append(
-        paragraph(
-            """
-            La matrice di correlazione mostra relazioni coerenti con l'interpretazione del
-            problema: child_mort e total_fer tendono a muoversi insieme, mentre sono in relazione
-            negativa con life_expec. Le variabili income e gdpp sono invece fortemente associate
-            e rappresentano una dimensione economica comune.
-            """,
-            body,
-        )
-    )
-    story.append(image_block(result.images["correlazione"], width_cm=14.5))
-    story.append(PageBreak())
-
-    story.append(Paragraph("PCA e selezione delle feature", heading))
-    story.append(
-        paragraph(
-            """
-            La PCA trasforma il dataset in un nuovo sistema di assi ortogonali. Le componenti
-            principali sono ordinate per varianza spiegata: PC1 è la direzione lungo cui i dati
-            variano maggiormente, PC2 la seconda direzione ortogonale. La consegna richiede anche
-            di valutare un sottoinsieme di feature; per questo è stato confrontato il dataset
-            completo con un subset socio-economico/sanitario.
-            """,
-            body,
-        )
-    )
-    story.append(dataframe_table(result.subset_comparison, max_rows=5))
-    story.append(
-        paragraph(
-            f"""
-            Il subset scelto è formato da {", ".join(result.selected_features)}. Le prime due
-            componenti spiegano il {result.pca_selected.explained_variance_ratio_.sum() * 100:.1f}%
-            della varianza, quindi il piano PCA conserva molta informazione utile per visualizzare
-            e clusterizzare gli stati.
-            """,
-            body,
-        )
-    )
-    story.append(PageBreak())
-
-    story.append(Paragraph("Scree Plot e Biplot", heading))
-    story.append(image_block(result.images["scree_selected"], width_cm=14.5))
-    story.append(Spacer(1, 0.25 * cm))
-    story.append(
-        paragraph(
-            """
-            Nel biplot gli score rappresentano gli stati nel nuovo sistema di coordinate, mentre
-            le frecce rappresentano i loading delle variabili originali. Vettori vicini indicano
-            correlazione positiva, vettori opposti indicano correlazione negativa.
-            """,
-            body,
-        )
-    )
-    story.append(image_block(result.images["biplot"], width_cm=14.5))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Scelta del numero di cluster", heading))
-    story.append(
-        paragraph(
-            f"""
-            Il metodo Elbow osserva la riduzione del WCSS/inertia al crescere di k, mentre la
-            silhouette media misura quanto ogni osservazione è coerente con il proprio cluster
-            rispetto agli altri. Nel nostro caso il gomito automatico indica k={result.elbow_k},
-            mentre la silhouette è massima per k={result.silhouette_k}. La scelta finale è
-            k={result.final_k}, perché fornisce la separazione media migliore nel piano delle
-            prime due componenti principali.
-            """,
-            body,
-        )
-    )
-    story.append(image_block(result.images["elbow_silhouette"], width_cm=15.5))
-    story.append(dataframe_table(result.k_selection, max_rows=9))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Clustering K-Means", heading))
-    story.append(
-        paragraph(
-            f"""
-            K-Means è un metodo partizionale center-based: ogni cluster è rappresentato da un
-            centroide e ogni punto viene assegnato al centroide più vicino. Applicato alle prime
-            due componenti principali del subset selezionato, ottiene silhouette media pari a
-            {result.silhouette_final:.3f}. Nel grafico sono mostrati anche i centri di massa dei
-            cluster, come richiesto dalla consegna.
-            """,
-            body,
-        )
-    )
-    story.append(image_block(result.images["cluster_kmeans"], width_cm=15.5))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Profilazione dei cluster", heading))
-    story.append(
-        paragraph(
-            """
-            Il profilo medio standardizzato permette di interpretare i gruppi. Valori positivi
-            indicano feature sopra la media del dataset, valori negativi indicano feature sotto la
-            media. In generale emergono un gruppo fragile, con mortalità infantile e fertilità
-            alte, un gruppo intermedio e un gruppo più avanzato con income, gdpp e life_expec più
-            elevati.
-            """,
-            body,
-        )
-    )
-    story.append(image_block(result.images["profilo_cluster"], width_cm=15.2))
-    profile_for_pdf = result.cluster_profile.reset_index().rename(columns={"cluster_kmeans": "cluster"})
-    story.append(dataframe_table(profile_for_pdf, max_rows=6))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Clustering K-Neighbors", heading))
-    story.append(
-        paragraph(
-            f"""
-            Poiché il dataset non contiene una variabile target, K-Neighbors è stato usato in
-            forma non supervisionata: si costruisce un grafo di affinità collegando ogni stato ai
-            suoi vicini più prossimi nel piano PCA e poi si applica SpectralClustering su tale
-            grafo. La silhouette ottenuta è {result.silhouette_knn:.3f}; l'Adjusted Rand Index tra
-            K-Means e K-Neighbors è {result.ari_kmeans_knn:.3f}, quindi i due metodi sono
-            confrontabili ma non identici.
-            """,
-            body,
-        )
-    )
-    story.append(image_block(result.images["cluster_knn"], width_cm=15.2))
-    story.append(PageBreak())
-
-    story.append(Paragraph("Esempi di stati e conclusioni", heading))
-    story.append(image_block(result.images["top_countries"], width_cm=15.5))
-    story.append(
-        paragraph(
-            """
-            L'analisi conferma che la struttura principale del dataset è guidata da una
-            contrapposizione tra indicatori di fragilità demografica/sanitaria e indicatori di
-            sviluppo economico. La standardizzazione è necessaria per rendere confrontabili le
-            variabili; la PCA consente di proiettare gli stati in uno spazio a bassa dimensione;
-            Elbow e Silhouette supportano la scelta del numero di gruppi; K-Means fornisce una
-            partizione compatta e interpretabile, mentre K-Neighbors evidenzia una struttura
-            locale basata sulle relazioni di prossimità.
-            """,
-            body,
-        )
-    )
-    story.append(Paragraph("Librerie utilizzate", subheading))
-    story.append(
-        paragraph(
-            """
-            pandas per il caricamento e la gestione dei dati, numpy per il calcolo numerico,
-            matplotlib per le visualizzazioni, scikit-learn per StandardScaler, PCA, KMeans,
-            SpectralClustering, kneighbors_graph e metriche di validazione, reportlab per la
-            generazione della relazione PDF.
-            """,
-            body,
-        )
-    )
-
-    doc = SimpleDocTemplate(
-        str(report_path),
-        pagesize=A4,
-        rightMargin=1.6 * cm,
-        leftMargin=1.6 * cm,
-        topMargin=1.5 * cm,
-        bottomMargin=1.5 * cm,
-    )
-    doc.build(story, onFirstPage=footer, onLaterPages=footer)
-    return report_path
-
 
 def create_source_zip() -> Path:
     """Crea lo zip richiesto con i soli codici sorgenti e file di supporto."""
@@ -965,7 +578,7 @@ def create_source_zip() -> Path:
     return zip_path
 
 
-def write_execution_summary(result: AnalysisResult, report_path: Path, zip_path: Path) -> None:
+def write_execution_summary(result: AnalysisResult, zip_path: Path) -> None:
     """Salva un riepilogo testuale dei risultati principali."""
 
     summary_path = OUTPUT_DIR / "README_output.md"
@@ -984,7 +597,7 @@ def write_execution_summary(result: AnalysisResult, report_path: Path, zip_path:
 
 ## File principali
 
-- Relazione PDF: `{report_path.relative_to(OUTPUT_DIR)}`
+- Relazione PDF gia presente: `{REPORT_PDF_PATH.relative_to(OUTPUT_DIR)}`
 - Zip sorgenti: `{zip_path.relative_to(OUTPUT_DIR)}`
 - Grafici: `grafici/`
 - Tabelle e assegnazioni: `tabelle/`
@@ -993,7 +606,7 @@ def write_execution_summary(result: AnalysisResult, report_path: Path, zip_path:
 ## Riproduzione
 
 ```bash
-python3 output_progetto/codice_sorgente/main.py
+python3 codice_sorgente/main.py
 ```
 """
     summary_path.write_text(summary, encoding="utf-8")
@@ -1001,9 +614,8 @@ python3 output_progetto/codice_sorgente/main.py
 
 def main() -> None:
     result = run_analysis()
-    report_path = build_report(result)
     zip_path = create_source_zip()
-    write_execution_summary(result, report_path, zip_path)
+    write_execution_summary(result, zip_path)
     
     print(f"Zip sorgenti creato: {zip_path}")
     print(f"k finale: {result.final_k}")

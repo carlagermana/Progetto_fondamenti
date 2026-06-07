@@ -12,16 +12,18 @@ Questo codice realizza una pipeline completa di data analysis sul dataset `Count
 Dalla root del progetto:
 
 ```bash
-python3 output_progetto/codice_sorgente/main.py
+python3 codice_sorgente/main.py
 ```
 
 Lo script legge il dataset originale dalla root del progetto oppure, se non presente, la copia
-in `output_progetto/dati/Country-data.csv`. Salva tutti gli output dentro `output_progetto`,
-senza modificare le directory della consegna o del materiale del corso.
+in `dati/Country-data.csv`. Salva tutti gli output dentro le cartelle del repository,
+senza modificare directory esterne.
 
 ## Output generati
 
 - `grafici/`: distribuzioni, matrice di correlazione, scree plot, biplot, cluster PCA.
 - `tabelle/`: statistiche, matrice di correlazione, scelta di `k`, assegnazione cluster.
-- `relazione/`: relazione PDF finale.
 - `dati/`: copia del dataset usata per riproducibilita.
+
+La relazione PDF finale resta disponibile in `relazione/`, ma non viene
+generata da questo script.

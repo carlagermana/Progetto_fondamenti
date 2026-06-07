@@ -13,7 +13,7 @@
 
 ## File principali
 
-- Relazione PDF: `relazione/relazione_progetto_country_clustering.pdf`
+- Relazione PDF gia presente: `relazione/relazione_progetto_country_clustering.pdf`
 - Zip sorgenti: `codice_sorgente/codice_sorgente_country_clustering.zip`
 - Grafici: `grafici/`
 - Tabelle e assegnazioni: `tabelle/`
@@ -22,5 +22,5 @@
 ## Riproduzione
 
 ```bash
-python3 output_progetto/codice_sorgente/main.py
+python3 codice_sorgente/main.py
 ```
