@@ -1,11 +1,11 @@
 # Output progetto Country clustering
 
-## Risultati principali
+## Risultati 
 
-- Osservazioni analizzate: 167
-- Feature numeriche iniziali: 9
+- Osservazioni analizzate: 167  (paesi)
+- Feature numeriche iniziali: 9 (caratteristica per paese)
 - Feature selezionate per la clusterizzazione finale: child_mort, income, life_expec, total_fer, gdpp
-- Varianza spiegata dalle prime due PC del subset: 91.60%
+- Varianza spiegata dalle prime due PC(principal components) del subset: 91.60%
 - Numero di cluster scelto: 3
 - Silhouette K-Means: 0.574
 - Silhouette K-Neighbors: 0.570
@@ -13,21 +13,21 @@
 
 ## File principali
 
-- Relazione PDF gia presente: `relazione/relazione_progetto_country_clustering.pdf`
+- Relazione: `relazione/relazione_progetto_country_clustering.pdf`
 - Zip sorgenti: `codice_sorgente/codice_sorgente_country_clustering.zip`
 - Grafici: `grafici/`
-- Tabelle e assegnazioni: `tabelle/`
-- Dataset copiato per riproducibilita: `dati/Country-data.csv`
+- Tabelle: `tabelle/`
+- Dataset: `dati/Country-data.csv`
 
-## Riproduzione
+## Come visualizzare il progetto
 
-Installare le librerie richieste:
+Installazione delle librerie necessarie(requirements.txt):
 
 ```bash
 pip install -r codice_sorgente/requirements.txt
 ```
 
-Eseguire lo script:
+Per eseguire lo script:
 
 ```bash
 python3 codice_sorgente/main.py
