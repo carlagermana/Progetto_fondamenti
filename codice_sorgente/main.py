@@ -94,7 +94,39 @@ CLUSTER_NAMES = {
     1: "profilo intermedio",
     2: "profilo avanzato",
     3: "profilo ad alto reddito anomalo",
+
+
 }
+
+"""
+Profilo fragile
+  Paesi con condizioni socio-economiche e sanitarie più difficili. In genere hanno:
+
+  - mortalità infantile più alta
+  - reddito più basso
+  - PIL pro capite più basso
+  - aspettativa di vita più bassa
+  - fertilità più alta
+
+  Profilo intermedio
+  Paesi in una situazione di mezzo. Non sono tra i più fragili, ma nemmeno tra i più avanzati. Hanno valori medi
+  o misti.
+
+  Profilo avanzato
+  Paesi con condizioni migliori. In genere hanno:
+
+  - mortalità infantile bassa
+  - reddito più alto
+  - PIL pro capite più alto
+  - aspettativa di vita alta
+  - fertilità più bassa
+
+  Profilo ad alto reddito anomalo
+  Gruppo di Paesi con reddito o PIL molto alto, ma con caratteristiche che possono renderli un po’ diversi dagli
+  altri Paesi avanzati. Per esempio possono avere valori economici molto elevati rispetto al resto del dataset.
+
+"""
+
 #----------------------------------------------   CREAZIONE DELLE CARTELLE DI OUTPUT 
 def ensure_directories() -> None: #-> None indica che la funzione non restituisce nessun valore.
     """Crea le cartelle di output"""
@@ -554,7 +586,7 @@ def plot_pca_clusters(
     
     # Mostra i centroidi solo se forniti (K-Means), con una X nera ben visibile
     if centers is not None:
-        ax.scatter(
+        ax.scatter(   #scatter è il grafico a punti — ogni punto rappresenta un'osservazione. In matplotlib si crea con ax.scatter(x, y) e posiziona ogni punto in base alle sue coordinate
             centers[:, 0], 
             centers[:, 1],
             marker="X", # Forma a X per distinguerli dai punti normali
@@ -668,48 +700,7 @@ def plot_top_countries(assignments: pd.DataFrame) -> Path:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-def compare_feature_subsets(data: pd.DataFrame) -> pd.DataFrame:
-    """Valuta dataset completo e sottoinsieme di feature tramite PCA a due componenti."""
-
-    rows = []
-    subsets = {
-        "tutte_le_feature": FULL_FEATURES,
-        "subset_socio_sanitario": SELECTED_FEATURES,
-    }
-    for subset_name, features in subsets.items():
-        x_scaled, _ = standardize(data, features)
-        pca = PCA(n_components=2, random_state=RANDOM_STATE)
-        scores = pca.fit_transform(x_scaled)
-        k_values = evaluate_kmeans_range(scores, 2, 8)
-        best_row = k_values.loc[k_values["silhouette"].idxmax()]
-        rows.append(
-            {
-                "scenario": subset_name,
-                "numero_feature": len(features),
-                "varianza_prime_2_PC": pca.explained_variance_ratio_.sum(),
-                "k_migliore_silhouette": int(best_row["k"]),
-                "silhouette_migliore": best_row["silhouette"],
-            }
-        )
-    comparison = pd.DataFrame(rows)
-    comparison.to_csv(TABLES_DIR / "confronto_subset_feature.csv", index=False)
-    return comparison
-
-
-
+# $ $ $ $ $. $ $ $ $ $$ $ $ $ $ $ $ $ $$ $ $ $ $
 
 
 
@@ -753,8 +744,6 @@ def run_analysis():
     pca_full = PCA(random_state=RANDOM_STATE)
     pca_full.fit(x_full_scaled)
     images["scree_full"] = plot_scree(pca_full, "tutte_feature")
-
-    compare_feature_subsets(data)
 
     # Pipeline finale: subset interpretabile + StandardScaler + PCA a due componenti.
     x_selected_scaled, _ = standardize(data, SELECTED_FEATURES)

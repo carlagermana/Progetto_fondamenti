@@ -19,15 +19,13 @@ pip install -r codice_sorgente/requirements.txt
 python3 codice_sorgente/main.py
 ```
 
-Lo script legge il dataset originale dalla root del progetto oppure, se non presente, la copia
-in `dati/Country-data.csv`. Salva tutti gli output dentro le cartelle del repository,
-senza modificare directory esterne.
+Lo script legge il dataset originale dalla root del progetto oppure, se non presente, la copia in `dati/Country-data.csv`. 
+Salva tutti gli output dentro le cartelle del repository, senza modificare directory esterne.
 
 ## Output generati
 
 - `grafici/`: distribuzioni, matrice di correlazione, scree plot, biplot, cluster PCA.
 - `tabelle/`: statistiche, matrice di correlazione, scelta di `k`, assegnazione cluster.
-- `dati/`: copia del dataset usata per riproducibilita.
+- `dati/`: copia del dataset.
 
-La relazione PDF finale resta disponibile in `relazione/`, ma non viene
-generata da questo script.
+La relazione PDF si trova in `relazione/`.
