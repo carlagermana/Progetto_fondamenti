@@ -127,7 +127,7 @@ Profilo fragile
 
 """
 
-#----------------------------------------------   CREAZIONE DELLE CARTELLE DI OUTPUT 
+#----------------------------------------------   CREAZIONE DELLE CARTELLE DI OUTPUT 1 
 def ensure_directories() -> None: #-> None indica che la funzione non restituisce nessun valore.
     """Crea le cartelle di output"""
 
@@ -140,7 +140,7 @@ def ensure_directories() -> None: #-> None indica che la funzione non restituisc
         exist_ok=Truenon dà errore se la cartella esiste già
     """
 
-#---------------------------------------------- CARICA IL CSV e VERIFICA CHE LE COLONNE ATTESE SIANO PRESENTI
+#---------------------------------------------- CARICA IL CSV e VERIFICA CHE LE COLONNE ATTESE SIANO PRESENTI 2
 def load_dataset() -> pd.DataFrame: #restituirà come output (return) un oggetto di tipo pd.DataFrame
 
     #Cerca il file prima nella cartella principale, poi in quella di output.
@@ -657,13 +657,10 @@ def plot_top_countries(assignments: pd.DataFrame) -> Path:
 
     """
     Nel grafico/tabella esempi_paesi_per_cluster.png, i cluster non sono fatti direttamente “a mano”.
-
   Sono i cluster creati da K-Means usando queste variabili selezionate:
-
-  child_mort, income, life_expec, total_fer, gdpp
+    child_mort, income, life_expec, total_fer, gdpp
 
   Il procedimento è:
-
   1. Il programma prende queste 5 variabili per ogni Paese.
   2. Le standardizza, cioè le mette sulla stessa scala.
   3. Applica la PCA e tiene le prime 2 componenti principali.
@@ -671,7 +668,6 @@ def plot_top_countries(assignments: pd.DataFrame) -> Path:
   5. K-Means divide i Paesi in gruppi simili tra loro.
 
   Quindi i cluster sono basati su somiglianze tra Paesi rispetto a:
-
   - mortalità infantile
   - reddito medio
   - aspettativa di vita
@@ -684,35 +680,43 @@ def plot_top_countries(assignments: pd.DataFrame) -> Path:
   ordered = group.sort_values("distanza_centroide").head(7)
 
   Questo significa:
-
   > per ogni cluster vengono presi i 7 Paesi più vicini al centro del cluster.
-
   Quindi sono Paesi “rappresentativi” di quel gruppo.
     """
 
-#----------------------------------------------
-
-
-
-
-
-
-
-
-
-# $ $ $ $ $. $ $ $ $ $$ $ $ $ $ $ $ $ $$ $ $ $ $
-
-
-
+#---------------------------------------------- ASEGNAZIONE DI NOMI LEGGIBILI PER I CLUSTER
 def assign_readable_cluster_names(assignments: pd.DataFrame) -> dict[int, str]:
     """
-    Ordina i cluster K-Means dal più fragile al più avanzato usando un indice semplice:
-    mortalità e fertilità alte aumentano fragilità, reddito/PIL/aspettativa di vita la riducono.
+    questa funzione guarda le caratteristiche medie di ogni cluster, li ordina dal più fragile al più avanzato,
+     e assegna un nome descrittivo a ciascun gruppo.
+    
+       K-Means produce solo numeri, per esempio:
+        cluster 0
+        cluster 1
+        cluster 2
+  Però questi numeri da soli non spiegano nulla. Questa funzione cerca di trasformarli in nomi come:
+    profilo fragile
+    profilo intermedio
+    profilo avanzato
     """
-
+    # Calcola la media delle variabili chiave per ogni cluster
+ 
     profile = assignments.groupby("cluster_kmeans")[
         ["child_mort", "income", "life_expec", "total_fer", "gdpp"]
     ].mean()
+
+    """
+    Il rank è la posizione in classifica.
+Per esempio se i tre cluster hanno child_mort media di 90, 30, 10:
+
+cluster A → rank 3 (il più alto, il più fragile)
+cluster B → rank 2
+cluster C → rank 1 (il più basso)
+    """
+
+     # Calcola un punteggio di fragilità per ogni cluster sommando i rank delle variabili
+    # - child_mort e total_fer: rank crescente_ (più sono alti, più fragile_ è il cluster)
+    # - income, gdpp, life_expec: rank decrescente (più sono bassi, più fragile è il cluster)
     fragility = (
         profile["child_mort"].rank(ascending=True)
         + profile["total_fer"].rank(ascending=True)
@@ -720,39 +724,77 @@ def assign_readable_cluster_names(assignments: pd.DataFrame) -> dict[int, str]:
         + profile["gdpp"].rank(ascending=False)
         + profile["life_expec"].rank(ascending=False)
     )
+    # Ordina i cluster dal più fragile al più avanzato
     ordered_clusters = fragility.sort_values(ascending=False).index.tolist()
+    # Assegna un nome descrittivo a ogni cluster in base alla sua posizione
     labels = {}
     for position, cluster_id in enumerate(ordered_clusters):
+        # CLUSTER_NAMES è un dizionario esterno con i nomi, es. {0: "profilo fragile", 1: "profilo intermedio"...}
         labels[int(cluster_id)] = CLUSTER_NAMES.get(position, f"profilo {position + 1}")
-    return labels
+    return labels # Dizionario {numero_cluster: nome_leggibile}
 
-
+    """
+    Come funziona il punteggio di fragilità
+    Ogni variabile viene trasformata in un rank (posizione in classifica) e sommata:
+    
+    Il cluster col punteggio più alto è il più fragile.
+    """
+#---------------------------------------------- FUNZIONE ANALISI
+"""
+È la funzione principale che orchestra tutta l'analisi dall'inizio alla fine. 
+Carica i dati, applica PCA, K-Means e K-Neighbors, genera tutti i grafici e salva tutti i risultati.
+"""
 def run_analysis():
-    """Esegue tutte le elaborazioni e salva tabelle/grafici intermedi."""
 
-    ensure_directories()
-    data = load_dataset()
-    save_basic_tables(data)
+    ensure_directories()     # Crea le cartelle di output se non esistono 1
+    data = load_dataset()     # Carica il dataset
+    save_basic_tables(data)     # Salva le tabelle di base (statistiche descrittive ecc.)
 
+    #• Questo blocco crea un dizionario chiamato images e, nello stesso momento, genera due grafici.
     images = {
         "distribuzioni": plot_feature_distributions(data),
         "correlazione": plot_correlation_matrix(data),
     }
+    """
+    Chiama questa funzione:
+        plot_feature_distributions(data)
+        che crea il grafico con le distribuzioni/istogrammi delle variabili numeriche.
+        Il risultato viene salvato con la chiave:
+        "distribuzioni"
+    Chiama quest'altra funzione:
+        plot_correlation_matrix(data)
+        che crea il grafico della matrice di correlazione tra le variabili.
+        Il risultato viene salvato con la chiave:
+        "correlazione"
 
+Il dizionario finale sarà simile a:
+  images = {
+      "distribuzioni": Path("grafici/distribuzioni_feature.png"),
+      "correlazione": Path("grafici/matrice_correlazione.png"),
+  }
+  Quindi images serve a conservare i percorsi dei grafici generati. In pratica dice:
+  ho creato questi grafici e salvo dove si trovano
+    """
+    # --- PCA su tutte le feature ---
+    # Serve solo per lo scree plot e il confronto con il subset
     # PCA sul dataset completo: utile per scree plot e confronto con il subset.
     x_full_scaled, _ = standardize(data, FULL_FEATURES)
     pca_full = PCA(random_state=RANDOM_STATE)
     pca_full.fit(x_full_scaled)
     images["scree_full"] = plot_scree(pca_full, "tutte_feature")
 
+    # --- PCA sul subset selezionato ---
     # Pipeline finale: subset interpretabile + StandardScaler + PCA a due componenti.
     x_selected_scaled, _ = standardize(data, SELECTED_FEATURES)
     pca_selected_full = PCA(random_state=RANDOM_STATE)
     pca_selected_full.fit(x_selected_scaled)
     images["scree_selected"] = plot_scree(pca_selected_full, "feature_selezionate")
 
+    # PCA ridotta a 2 componenti — usata per tutti i grafici e il clustering
     pca_selected = PCA(n_components=2, random_state=RANDOM_STATE)
     selected_scores = pca_selected.fit_transform(x_selected_scaled)
+   
+    # Salva la tabella con varianza spiegata e cumulata per ogni componente
     pca_variance = pd.DataFrame(
         {
             "PC": [f"PC{i}" for i in range(1, len(pca_selected_full.explained_variance_ratio_) + 1)],
@@ -761,6 +803,10 @@ def run_analysis():
         }
     )
     pca_variance.to_csv(TABLES_DIR / "pca_varianza_feature_selezionate.csv", index=False)
+    """
+    Varianza spiegata — quanta informazione aggiunge ogni singola componente.
+    Varianza cumulata — quanta informazione totale hai raccolto aggiungendo le componenti una alla volta.
+    """
 
     images["biplot"] = plot_biplot(
         selected_scores,
@@ -768,20 +814,30 @@ def run_analysis():
         pca_selected.explained_variance_ratio_,
         SELECTED_FEATURES,
     )
-
+    """
+     images["biplot"] = ...
+     salva il grafico creato con il nome "biplot" nel dizionario images.
+     La funzione chiamata è: plot_biplot(...) che genera il grafico biplot.
+    """
+   
+    # --- Scelta di K ---
+    # Prova K da 2 a 10 e raccoglie inerzia e silhouette
     k_selection = evaluate_kmeans_range(selected_scores, 2, 10)
     k_selection.to_csv(TABLES_DIR / "scelta_k_elbow_silhouette.csv", index=False)
-    elbow_k = compute_elbow_k(k_selection)
-    silhouette_k = int(k_selection.loc[k_selection["silhouette"].idxmax(), "k"])
+    elbow_k = compute_elbow_k(k_selection) # K suggerito dal metodo Elbow
+    silhouette_k = int(k_selection.loc[k_selection["silhouette"].idxmax(), "k"]) # K con silhouette migliore
 
+    # Si sceglie il K della silhouette perché produce cluster più separati
     # La scelta finale privilegia la silhouette quando il subset PCA evidenzia cluster più separati.
     final_k = silhouette_k
     images["elbow_silhouette"] = plot_k_selection(k_selection, final_k)
 
+    # --- K-Means ---
     kmeans = KMeans(n_clusters=final_k, random_state=RANDOM_STATE, n_init=20)
-    kmeans_labels = kmeans.fit_predict(selected_scores)
-    kmeans_centers = kmeans.cluster_centers_
-    silhouette_final = silhouette_score(selected_scores, kmeans_labels)
+    kmeans_labels = kmeans.fit_predict(selected_scores) # Numero cluster per ogni paese
+    kmeans_centers = kmeans.cluster_centers_ # Coordinate dei centroidi
+    
+        #Questa parte crea il grafico dei cluster K-Means nel piano PCA.
     images["cluster_kmeans"] = plot_pca_clusters(
         selected_scores,
         kmeans_labels,
@@ -790,27 +846,79 @@ def run_analysis():
         "Cluster K-Means sulle prime due componenti principali",
         "cluster_kmeans_pca_centroidi.png",
     )
+    """
+     images["cluster_kmeans"] = ...
+        salva nel dizionario images il percorso del grafico creato.
+    La funzione chiamata è: plot_pca_clusters(...) che disegna i Paesi come punti nel piano PCA.
+    """
 
+    # --- K-Neighbors (SpectralClustering) ---
+    # Alternativa a K-Means
     # Clustering K-Neighbors: SpectralClustering costruisce una matrice di affinità dai vicini.
     n_neighbors = min(10, len(data) - 1)
-    knn_model = SpectralClustering(
+    """
+    Questo blocco crea un secondo metodo di clustering basato sui vicini più prossimi.
+    n_neighbors = min(10, len(data) - 1)
+    sceglie quanti vicini considerare per ogni Paese.
+    Significa:
+  - normalmente usa 10 vicini
+  - però se il dataset fosse molto piccolo, non può usare più vicini dei Paesi disponibili
+  - quindi prende il minimo tra 10 e numero_paesi - 1
+
+    """
+    knn_model = SpectralClustering( #  È una classe/modello importato da scikit-learn, una libreria esterna di Python.
         n_clusters=final_k,
         affinity="nearest_neighbors",
         n_neighbors=n_neighbors,
         assign_labels="kmeans",
         random_state=RANDOM_STATE,
     )
+    """
+    crea il modello di clustering.
+    I parametri significano:
+     n_clusters=final_k
+        usa lo stesso numero di cluster scelto prima per K-Means.
+     affinity="nearest_neighbors"
+         dice al modello di costruire i gruppi guardando quali Paesi sono vicini tra loro.
+    n_neighbors=n_neighbors
+         usa il numero di vicini calcolato prima, cioè al massimo 10.
+         rende il risultato ripetibile.
+    """
+
     knn_labels = knn_model.fit_predict(selected_scores)
+    """
+     Addestra il modello knn_model sui dati PCA (selected_scores) e assegna un cluster a ogni Paese.
+     Il risultato knn_labels è una lista di etichette, tipo:  [0, 1, 1, 2, 0, ...]
+     cioè il cluster assegnato a ogni Paese.
+    """
     silhouette_knn = silhouette_score(selected_scores, knn_labels)
+    """
+    calcola la Silhouette Score per questi cluster.
+        Serve a misurare quanto i cluster sono ben separati:
+  - valore più alto = cluster migliori/separati meglio
+  - valore basso = cluster meno chiari
+    """
     ari_kmeans_knn = adjusted_rand_score(kmeans_labels, knn_labels)
+    """
+    confronta i cluster ottenuti con K-Means (kmeans_labels) e quelli ottenuti con K-Neighbors/SpectralClustering(knn_labels).
+L’ARI, cioè ***Adjusted Rand Index***, misura quanto due classificazioni sono simili: !!!!!!!!!!!!!!!!!
+  - vicino a 1 = i due metodi hanno prodotto cluster molto simili
+  - vicino a 0 = somiglianza bassa o casuale
+    
+    """
+    #crea il grafico dei cluster ottenuti con K-Neighbors/SpectralClustering.
     images["cluster_knn"] = plot_pca_clusters(
-        selected_scores,
-        knn_labels,
-        None,
-        pca_selected.explained_variance_ratio_,
-        "Cluster basati su grafo K-Neighbors nel piano PCA",
-        "cluster_kneighbors_pca.png",
+        selected_scores, #coordinate dei paesi nel piano PCA
+        knn_labels, #  cluster assegnati dal modello KNN/SpectralClustering.
+        None, #niente centroidi
+        pca_selected.explained_variance_ratio_, #  serve per indicare sugli assi quanta informazione spiegano PC1 e PC2
+        "Cluster basati su grafo K-Neighbors nel piano PCA", #  titolo del grafico.
+        "cluster_kneighbors_pca.png", #  nome del file immagine salvato nella cartella grafici.
     )
+    """
+    images["cluster_knn"] = ...
+    salva il grafico creato con il nome "cluster_knn" nel dizionario images.
+    """
 
     # Il grafo dei vicini è salvato in forma compatta: numero di collegamenti per osservazione.
     knn_graph = kneighbors_graph(selected_scores, n_neighbors=n_neighbors, include_self=False)
@@ -818,17 +926,41 @@ def run_analysis():
         TABLES_DIR / "grafo_kneighbors_sintesi.csv",
         index=False,
     )
+    """
+    questo blocco crea i cluster con il metodo K-Neighbors/SpectralClustering, misura quanto sono buoni, li
+    confronta con K-Means e salva il grafico corrispondente.
+    """
 
-    assignments = data.copy()
-    assignments["PC1"] = selected_scores[:, 0]
+
+
+#------- - - - 
+#Questo blocco crea una tabella finale con, per ogni Paese, il cluster assegnato e alcune informazioni utili per interpretarlo.
+  
+    assignments = data.copy() #  Crea una copia del dataset originale. Così non modifica direttamente data.
+    assignments["PC1"] = selected_scores[:, 0]  # Aggiunge alla tabella le coordinate PCA di ogni Paese: 2 colonne con la pc
     assignments["PC2"] = selected_scores[:, 1]
-    assignments["cluster_kmeans"] = kmeans_labels
-    assignments["cluster_kneighbors"] = knn_labels
-    assignments["distanza_centroide"] = np.linalg.norm(selected_scores - kmeans_centers[kmeans_labels], axis=1)
+
+    assignments["cluster_kmeans"] = kmeans_labels   #Aggiunge il cluster assegnato da K-Means.
+    assignments["cluster_kneighbors"] = knn_labels   #Aggiunge il cluster assegnato dal metodo K-Neighbors/SpectralClustering.
+   
+   #  Calcola quanto ogni Paese è distante dal centro del proprio cluster K-Means.
+   #  più la distanza è piccola, più quel Paese è rappresentativo del suo cluster.
+    assignments["distanza_centroide"] = np.linalg.norm(selected_scores - kmeans_centers[kmeans_labels], axis=1) 
+
     readable_names = assign_readable_cluster_names(assignments)
-    assignments["profilo_cluster"] = assignments["cluster_kmeans"].map(readable_names)
+    """
+     Crea i nomi leggibili dei cluster:
+         profilo fragile
+         profilo intermedio
+         profilo avanzato
+    """
+
+    assignments["profilo_cluster"] = assignments["cluster_kmeans"].map(readable_names) #Aggiunge alla tabella il nome descrittivo del cluster.
+    #  Salva questa tabella finale in un file CSV:
     assignments.to_csv(TABLES_DIR / "assegnazione_cluster_stati.csv", index=False)
+    #Crea il grafico/tabella esempi_paesi_per_cluster.png, mostrando per ogni cluster i Paesi più vicini al centroide.
     images["top_countries"] = plot_top_countries(assignments)
+#------ - - - 
 
     scaled_selected_frame = pd.DataFrame(x_selected_scaled, columns=SELECTED_FEATURES)
     scaled_selected_frame["cluster_kmeans"] = kmeans_labels
@@ -852,6 +984,7 @@ def run_analysis():
         "silhouette_knn": silhouette_knn,
         "ari_kmeans_knn": ari_kmeans_knn,
     }
+
 
 
 def main() -> None:
