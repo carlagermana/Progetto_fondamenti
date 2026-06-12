@@ -1,4 +1,0 @@
-cluster_kmeans,child_mort,income,life_expec,total_fer,gdpp,dimensione,nome_profilo
-0,-0.816,1.596,1.074,-0.72,1.686,34,profilo avanzato
-1,1.356,-0.699,-1.295,1.36,-0.608,47,profilo fragile
-2,-0.418,-0.249,0.283,-0.459,-0.334,86,profilo intermedio

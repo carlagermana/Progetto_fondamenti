@@ -1,7 +1,7 @@
 """
 Progetto di data analysis sul dataset Country-data.csv.
 
-Carla Germana' - Fabio Raineri - 
+Carla Germana' - Fabio Raineri - Jaidan Yassine
 
 il codice contiene l'intera pipeline :
 
@@ -50,7 +50,6 @@ from matplotlib.colors import ListedColormap #colori personalizzati per i grafic
 from sklearn.cluster import KMeans, SpectralClustering #raggruppano i dati in gruppi (cluster)
 from sklearn.decomposition import PCA #ridurre la dimensionalità dei dati
 from sklearn.metrics import adjusted_rand_score, silhouette_score #misurano quanto sono buoni i cluster
-from sklearn.neighbors import kneighbors_graph #trova i vicini più simili
 from sklearn.preprocessing import StandardScaler #per la normalizzazione dei dati
 
 #---------------------------------------------- 
@@ -94,10 +93,7 @@ CLUSTER_NAMES = {
     1: "profilo intermedio",
     2: "profilo avanzato",
     3: "profilo ad alto reddito anomalo",
-
-
 }
-
 """
 Profilo fragile
   Paesi con condizioni socio-economiche e sanitarie più difficili. In genere hanno:
@@ -124,7 +120,6 @@ Profilo fragile
   Profilo ad alto reddito anomalo
   Gruppo di Paesi con reddito o PIL molto alto, ma con caratteristiche che possono renderli un po’ diversi dagli
   altri Paesi avanzati. Per esempio possono avere valori economici molto elevati rispetto al resto del dataset.
-
 """
 
 #----------------------------------------------   CREAZIONE DELLE CARTELLE DI OUTPUT 1 
@@ -168,7 +163,6 @@ def load_dataset() -> pd.DataFrame: #restituirà come output (return) un oggetto
                   ─────────────────────────────────────────
         differenza →     {"gdpp"}  ← manca questa!
     """
-    
     #Se manca qualcosa → blocca tutto
     if missing_columns:
         raise ValueError(f"Colonne mancanti nel dataset: {missing_columns}")
@@ -186,7 +180,6 @@ def load_dataset() -> pd.DataFrame: #restituirà come output (return) un oggetto
         Pandas assegna automaticamente un numero di riga a ogni riga (0, 1, 2, 3...).
         Dicendo index=False, eviti che questi numeri di servizio vengano salvati nel 
             file CSV come una colonna aggiuntiva innaturale
-    
     """
     return data #restituisce la tabella
 
@@ -198,7 +191,6 @@ def standardize(data: pd.DataFrame, features: list[str]) -> tuple[np.ndarray, St
     scaled_data = scaler.fit_transform(data[features]) #normalizza (solo le features - colonne scelte)
     return scaled_data, scaler # restituisce dati normalizzati + scaler
         #lo scaler perché servirà dopo per fare il processo al contrario e ritrovare i valori originali
-
     """
     Il problema senza normalizzazione:
     PIL (gdpp):        45000  ← numeri enormi
@@ -207,7 +199,6 @@ def standardize(data: pd.DataFrame, features: list[str]) -> tuple[np.ndarray, St
     
     La soluzione — StandardScaler:
         Trasforma ogni colonna così:
-
              valore originale - media
             ─────────────────────────
                 deviazione standard
@@ -235,7 +226,6 @@ def save_basic_tables(data: pd.DataFrame) -> None:
             #nome col 2
             "valore": [data.shape[0], data.shape[1], int(data.isna().sum().sum())],
                                                     #conta tutti i valori mancanti nel dataset.
-
         }
     )
 
@@ -251,7 +241,6 @@ def save_basic_tables(data: pd.DataFrame) -> None:
         Per ogni colonna mostra media, min, max, ecc.:
     """
     data[FULL_FEATURES].describe().T.round(3).to_csv(TABLES_DIR / "statistiche_descrittive.csv")
-    
 
     """
     Matrice di correlazione → matrice_correlazione.csv
@@ -262,17 +251,14 @@ def save_basic_tables(data: pd.DataFrame) -> None:
     child_mort       1.0    -0.8   -0.7  ← alta mortalità = basso reddito
     income          -0.8     1.0    0.9
 
-
     """
     data[FULL_FEATURES].corr().round(3).to_csv(TABLES_DIR / "matrice_correlazione.csv")
 
 #---------------------------------------------- METODO DEL GOMITO PER TROVARE NUM. OTTIMALE DI CLUSTER
 def compute_elbow_k(k_selection: pd.DataFrame) -> int: #Trova il numero ottimale di cluster (gruppi in cui dividere i paesi) usando il metodo del gomito.
-
     """
     Quando aumentiamo i cluster, l'errore (inertia) scende. 
     Ma ad un certo punto scende poco, lì c'è il gomito, il numero ottimale di cluster.
-
     """
     points = k_selection[["k", "inertia"]].to_numpy(dtype=float) # Prende i punti del grafico
 
@@ -290,7 +276,6 @@ def compute_elbow_k(k_selection: pd.DataFrame) -> int: #Trova il numero ottimale
             \
              *       ← ultimo punto
     """
-
     #Misura la distanza di ogni punto dalla retta
     cross_2d = line[0] * shifted_points[:, 1] - line[1] * shifted_points[:, 0]
     distances = np.abs(cross_2d / np.linalg.norm(line))
@@ -442,7 +427,6 @@ def plot_scree(pca: PCA, prefix: str) -> Path:
     return output #ritorna il path
 
 #---------------------------------------------- CREA IL BIPLOT!: score degli stati e loading delle variabili originali.
-
 def plot_biplot(
     scores: np.ndarray, #cosa prende come parametro la funwione
     loadings: np.ndarray,
@@ -516,7 +500,6 @@ def plot_biplot(
     return output #ritorna il path del file salvato nella cartella grafici
 
 #---------------------------------------------- METODO ELBOW E SILHOUETTE SCORE insieme per decidere il numero di cluster
-
 def plot_k_selection(k_selection: pd.DataFrame, final_k: int) -> Path:
 
     output = PLOTS_DIR / "elbow_silhouette.png" # //
@@ -618,7 +601,6 @@ def plot_pca_clusters(
     return output # restituisce il percorso del file salvato.
 
 #---------------------------------------------- PNG di una tabella con esempi di paesi per ogni gruppo (cluter)
-
 def plot_top_countries(assignments: pd.DataFrame) -> Path:
     """
     Prende assignments che è un DataFrame con almeno tre colonne:Prende assignments che è un DataFrame con almeno tre colonne:
@@ -732,7 +714,6 @@ cluster C → rank 1 (il più basso)
         # CLUSTER_NAMES è un dizionario esterno con i nomi, es. {0: "profilo fragile", 1: "profilo intermedio"...}
         labels[int(cluster_id)] = CLUSTER_NAMES.get(position, f"profilo {position + 1}")
     return labels # Dizionario {numero_cluster: nome_leggibile}
-
     """
     Come funziona il punteggio di fragilità
     Ogni variabile viene trasformata in un rank (posizione in classifica) e sommata:
@@ -836,6 +817,19 @@ Il dizionario finale sarà simile a:
     kmeans = KMeans(n_clusters=final_k, random_state=RANDOM_STATE, n_init=20)
     kmeans_labels = kmeans.fit_predict(selected_scores) # Numero cluster per ogni paese
     kmeans_centers = kmeans.cluster_centers_ # Coordinate dei centroidi
+    silhouette_final = silhouette_score(selected_scores, kmeans_labels)
+    """
+    Calcola la Silhouette Score dei cluster trovati da K-Means.
+    Prende due parametri:
+
+    selected_scores — le coordinate dei punti nel piano PCA
+    kmeans_labels — il cluster assegnato a ogni punto
+
+    Restituisce un numero tra -1 e 1:
+        vicino a 1 — i cluster sono ben separati e compatti
+        vicino a 0 — i cluster si sovrappongono
+        vicino a -1 — i punti sono nel cluster sbagliato
+    """
     
         #Questa parte crea il grafico dei cluster K-Means nel piano PCA.
     images["cluster_kmeans"] = plot_pca_clusters(
@@ -917,21 +911,10 @@ L’ARI, cioè ***Adjusted Rand Index***, misura quanto due classificazioni sono
     )
     """
     images["cluster_knn"] = ...
-    salva il grafico creato con il nome "cluster_knn" nel dizionario images.
+    Salva nel dizionario images il percorso del grafico "cluster_knn".
+      Questo blocco visualizza i cluster ottenuti con K-Neighbors/SpectralClustering
+        e permette di confrontarli visivamente con il grafico dei cluster K-Means.
     """
-
-    # Il grafo dei vicini è salvato in forma compatta: numero di collegamenti per osservazione.
-    knn_graph = kneighbors_graph(selected_scores, n_neighbors=n_neighbors, include_self=False)
-    pd.DataFrame({"country": data["country"], "numero_vicini": np.asarray(knn_graph.sum(axis=1)).ravel()}).to_csv(
-        TABLES_DIR / "grafo_kneighbors_sintesi.csv",
-        index=False,
-    )
-    """
-    questo blocco crea i cluster con il metodo K-Neighbors/SpectralClustering, misura quanto sono buoni, li
-    confronta con K-Means e salva il grafico corrispondente.
-    """
-
-
 
 #------- - - - 
 #Questo blocco crea una tabella finale con, per ogni Paese, il cluster assegnato e alcune informazioni utili per interpretarlo.
@@ -960,19 +943,9 @@ L’ARI, cioè ***Adjusted Rand Index***, misura quanto due classificazioni sono
     assignments.to_csv(TABLES_DIR / "assegnazione_cluster_stati.csv", index=False)
     #Crea il grafico/tabella esempi_paesi_per_cluster.png, mostrando per ogni cluster i Paesi più vicini al centroide.
     images["top_countries"] = plot_top_countries(assignments)
-#------ - - - 
+   #------ - - - 
 
-    scaled_selected_frame = pd.DataFrame(x_selected_scaled, columns=SELECTED_FEATURES)
-    scaled_selected_frame["cluster_kmeans"] = kmeans_labels
-    cluster_profile = scaled_selected_frame.groupby("cluster_kmeans").mean().round(3)
-    cluster_profile["dimensione"] = scaled_selected_frame.groupby("cluster_kmeans").size()
-    cluster_profile["nome_profilo"] = cluster_profile.index.map(readable_names)
-    cluster_profile.to_csv(TABLES_DIR / "profilo_cluster_kmeans_standardizzato.csv")
-
-    raw_profile = assignments.groupby("profilo_cluster")[SELECTED_FEATURES].mean().round(2)
-    raw_profile["numero_stati"] = assignments.groupby("profilo_cluster").size()
-    raw_profile.to_csv(TABLES_DIR / "profilo_cluster_valori_originali.csv")
-
+#Questo blocco restituisce i risultati principali della funzione run_analysis() sotto forma di dizionario.
     return {
         "data": data,
         "selected_features": SELECTED_FEATURES,
@@ -984,16 +957,72 @@ L’ARI, cioè ***Adjusted Rand Index***, misura quanto due classificazioni sono
         "silhouette_knn": silhouette_knn,
         "ari_kmeans_knn": ari_kmeans_knn,
     }
-
-
-
-def main() -> None:
+"""
+quando run_analysis() finisce, restituisci questi valori così posso usarli dopo.
+  Per esempio nel main() usiamo:
     result = run_analysis()
+  Quindi result diventa questo dizionario.
+  
+  Poi puoi leggere i valori così:
+  result["final_k"]
+  result["silhouette_final"]
+  result["silhouette_knn"]
 
-    print(f"k finale: {result['final_k']}")
-    print(f"Silhouette K-Means: {result['silhouette_final']:.3f}")
-    print(f"Silhouette K-Neighbors: {result['silhouette_knn']:.3f}")
+  Significato delle chiavi:
+    "data": data
+        salva il dataset caricato.
+    "selected_features": SELECTED_FEATURES
+        salva le variabili usate per il clustering finale.  
+    "pca_selected": pca_selected
+        salva il modello PCA usato sulle feature selezionate.
+    "final_k": final_k
+        salva il numero finale di cluster scelto.
+    "elbow_k": elbow_k
+        salva il numero di cluster suggerito dal metodo Elbow.
+    "silhouette_k": silhouette_k
+        salva il numero di cluster suggerito dalla Silhouette.
+    "silhouette_final": silhouette_final
+        salva il valore della Silhouette per K-Means.
+    "silhouette_knn": silhouette_knn
+        salva il valore della Silhouette per K-Neighbors/SpectralClustering.
+    "ari_kmeans_knn": ari_kmeans_knn
+        salva il confronto tra i cluster K-Means e quelli K-Neighbors.
 
+  In breve:
+    serve a restituire dalla funzione i risultati più importanti dell’analisi, così il programma può stamparli o riutilizzarli dopo.
+"""
+
+#----------------------------------------------
+# Questa è la parte finale del programma: 
+# serve ad avviare l’analisi e stampare alcuni risultati nel terminale.
+def main() -> None: #questa funzione non restituisce nulla
+    result = run_analysis() #  Esegue tutta l’analisi chiamando run_analysis().
+    """
+    Questa funzione produce grafici, tabelle, cluster, PCA, ecc. 
+    
+    Alla fine restituisce un dizionario con i risultati principali. 
+    Quel dizionario viene salvato nella variabile result.
+    """
+
+    print(f"k finale: {result['final_k']}") #  stampa nel terminale il numero finale di cluster scelto.
+    print(f"Silhouette K-Means: {result['silhouette_final']:.3f}") #  stampa il valore della Silhouette Score per K-Means, con 3 cifre decimali.
+    print(f"Silhouette K-Neighbors: {result['silhouette_knn']:.3f}") #   stampa il valore della Silhouette Score per il metodo K-Neighbors/SpectralClustering, sempre con 3 cifre decimali.
+"""
+f davanti alle virgolette indica una f-string — un modo per inserire variabili direttamente dentro una stringa.
+Tutto quello che sta dentro {} viene sostituito con il valore reale
+.3f dentro le graffe significa "mostra il numero con 3 cifre decimali" — per esempio 0.756.
+"""
 
 if __name__ == "__main__":
     main()
+    """
+    significa:
+        esegui main() solo se questo file viene lanciato direttamente.
+    Cioè se facciamo:
+        python3 codice_sorgente/main.py
+            allora il programma parte.
+  --------------
+  
+  In breve:
+    questa parte avvia il progetto e mostra nel terminale i risultati finali più importanti.
+    """
